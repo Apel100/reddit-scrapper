@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CineNuggets: Viral Content Scraper</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔥</text></svg>">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- App Container -->
+    <div class="app-container">
+        
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <span class="logo-icon">🔥</span>
+                <div class="logo-text">
+                    <h1>CineNuggets</h1>
+                    <span class="subtitle">Viral Content Scraper</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <div id="connection-status" class="status-badge connected">
+                    <span class="dot"></span> Server Connected
+                </div>
+                <div id="scraper-status" class="status-badge idle">
+                    <span class="dot"></span> Scraper: Idle
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content Layout -->
+        <main class="app-content">
+            
+            <!-- Left Panel: Control Center -->
+            <section class="control-panel panel-card">
+                <div class="panel-header">
+                    <h2>⚙️ Control Center</h2>
+                    <p>Configure parameters and target directories.</p>
+                </div>
+                
+                <form id="settings-form" class="settings-form" onsubmit="event.preventDefault();">
+                    <!-- Comment Threshold Slider -->
+                    <div class="form-group">
+                        <div class="label-row">
+                            <label for="comment-threshold">Min Comment Threshold</label>
+                            <span id="comment-threshold-val" class="badge">15</span>
+                        </div>
+                        <input type="range" id="comment-threshold" name="comment_threshold" min="0" max="300" value="15">
+                    </div>
+
+                    <!-- Lookback Period Slider -->
+                    <div class="form-group">
+                        <div class="label-row">
+                            <label for="lookback-val">Lookback Period</label>
+                            <div class="lookback-unit-selector">
+                                <span id="lookback-val-display" class="badge">16</span>
+                                <select id="lookback-unit" name="lookback_unit">
+                                    <option value="Hours">Hours</option>
+                                    <option value="Days">Days</option>
+                                </select>
+                            </div>
+                        </div>
+                        <input type="range" id="lookback-val" name="lookback_val" min="1" max="168" value="16">
+                    </div>
+
+                    <!-- Max Workers Slider -->
+                    <div class="form-group">
+                        <div class="label-row">
+                            <label for="max-workers">Max Parallel Workers</label>
+                            <span id="max-workers-val" class="badge">15</span>
+                        </div>
+                        <input type="range" id="max-workers" name="max_workers" min="1" max="25" value="15">
+                    </div>
+
+                    <!-- Save Folder -->
+                    <div class="form-group">
+                        <label for="save-folder">Save Folder Path</label>
+                        <div class="input-action-row">
+                            <input type="text" id="save-folder" name="save_folder" placeholder="Default script directory" readonly>
+                            <button type="button" id="btn-save-settings" class="btn secondary btn-sm" onclick="saveSettings()">Save Settings</button>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- Configuration Management Tabs -->
+                <div class="config-tabs-container">
+                    <div class="config-tab-headers">
+                        <button class="config-tab-btn active" onclick="switchConfigTab('subreddits')">Subreddits</button>
+                        <button class="config-tab-btn" onclick="switchConfigTab('keywords')">Keywords</button>
+                    </div>
+                    
+                    <!-- Subreddits Tab -->
+                    <div id="config-subreddits" class="config-tab-content active">
+                        <div class="subreddit-input-row">
+                            <input type="text" id="new-subreddit" placeholder="e.g. popculturechat">
+                            <button type="button" class="btn secondary btn-sm" onclick="addSubreddit()">Add</button>
+                        </div>
+                        <div id="subreddits-list" class="chips-container">
+                            <!-- Populated by JavaScript -->
+                        </div>
+                    </div>
+                    
+                    <!-- Keywords Tab -->
+                    <div id="config-keywords" class="config-tab-content">
+                        <p class="help-text">Use <code>OR</code> to separate items, e.g. <code>Zendaya OR Selena</code></p>
+                        <textarea id="keywords-input" rows="5" placeholder="Enter keywords..."></textarea>
+                        <button type="button" class="btn secondary btn-sm mt-5" onclick="updateKeywords()">Update Keywords</button>
+                    </div>
+                </div>
+
+                <!-- Main Action Buttons -->
+                <div class="panel-actions">
+                    <button id="btn-start" class="btn primary btn-lg w-full" onclick="startScraper()">
+                        <span class="icon">🚀</span> Start Viral Scraper
+                    </button>
+                    <button id="btn-stop" class="btn danger btn-lg w-full d-none" onclick="stopScraper()">
+                        <span class="icon">🛑</span> Stop Scraper
+                    </button>
+                </div>
+            </section>
+
+            <!-- Right Panel: Dashboard Viewer -->
+            <section class="dashboard-panel">
+                
+                <!-- Tab Headers -->
+                <div class="dashboard-tab-headers">
+                    <button id="tab-btn-console" class="tab-btn active" onclick="switchMainTab('console')">Console Logs</button>
+                    <button id="tab-btn-results" class="tab-btn" onclick="switchMainTab('results')">Scraped Content</button>
+                </div>
+
+                <!-- Tab 1: Live Console Logs -->
+                <div id="tab-content-console" class="tab-content active panel-card flex-col">
+                    <div class="console-header">
+                        <div class="progress-container">
+                            <div class="progress-bar-wrapper">
+                                <div id="progress-bar" class="progress-bar" style="width: 0%;"></div>
+                            </div>
+                            <span id="progress-label" class="progress-label">0%</span>
+                        </div>
+                        
+                        <!-- Status stats grid -->
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <span class="stat-label">Status</span>
+                                <span id="stat-status" class="stat-value text-muted">Idle</span>
+                            </div>
+                            <div class="stat-card">
+                                <span class="stat-label">Discovered</span>
+                                <span id="stat-discovered" class="stat-value">0</span>
+                            </div>
+                            <div class="stat-card">
+                                <span class="stat-label">Scraped</span>
+                                <span id="stat-scraped" class="stat-value">0</span>
+                            </div>
+                            <div class="stat-card">
+                                <span class="stat-label">Errors</span>
+                                <span id="stat-errors" class="stat-value">0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Logs Console Viewport -->
+                    <div class="console-viewport-container flex-grow">
+                        <div id="console-viewport" class="console-viewport">
+                            <div class="log-line system-log">[SYSTEM] CineNuggets Scraper UI ready. Click "Start Viral Scraper" to begin...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 2: Scraped Results -->
+                <div id="tab-content-results" class="tab-content panel-card p-0 flex-row">
+                    <!-- Results List Sidebar -->
+                    <div class="results-sidebar">
+                        <div class="sidebar-header">
+                            <h3>📁 Scrapped List</h3>
+                            <div class="sidebar-actions">
+                                <button class="btn secondary btn-sm" onclick="openResultsFolder()">📂 Open Folder</button>
+                                <button class="btn secondary btn-sm" onclick="loadResultsList()">🔄 Refresh</button>
+                            </div>
+                        </div>
+                        
+                        <div id="results-list" class="results-list-container">
+                            <!-- Populated dynamically -->
+                            <div class="no-results">No files found. Run the scraper first.</div>
+                        </div>
+                    </div>
+
+                    <!-- Result Reader Viewport -->
+                    <div class="result-viewer">
+                        <div id="viewer-empty-state" class="viewer-empty-state">
+                            <span class="icon">📖</span>
+                            <h3>Select a file to read</h3>
+                            <p>Choose a discussion file from the left sidebar to view formatted comments in a structured thread tree.</p>
+                        </div>
+                        
+                        <div id="viewer-content-state" class="viewer-content-state d-none">
+                            <div class="viewer-header">
+                                <h3 id="viewer-title">Post Title goes here</h3>
+                                <div class="viewer-meta">
+                                    <span id="viewer-sub" class="badge">r/subreddit</span>
+                                    <span id="viewer-date" class="badge">2026-05-23</span>
+                                    <a id="viewer-link" href="#" target="_blank" class="link-btn">🔗 View on Reddit</a>
+                                    <button class="btn primary btn-sm ml-auto" onclick="copyViewerContentForAI()">📋 Copy for AI</button>
+                                </div>
+                            </div>
+                            <div id="viewer-comments-tree" class="viewer-comments-tree">
+                                <!-- Comment tree renders here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+            </section>
+        </main>
+    </div>
+
+    <!-- Alert Toast -->
+    <div id="toast" class="toast d-none"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
