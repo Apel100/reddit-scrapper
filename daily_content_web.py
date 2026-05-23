@@ -32,9 +32,11 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 if os.path.basename(script_dir) == "web_static":
     static_dir = "."
     parent_dir = os.path.dirname(script_dir)
+    web_static_dir = script_dir
 else:
     static_dir = "web_static"
     parent_dir = script_dir
+    web_static_dir = os.path.join(script_dir, "web_static")
 
 app = Flask(__name__, static_folder=static_dir)
 CORS(app)
@@ -191,7 +193,7 @@ DEFAULT_SUB_LIST = [
 
 DEFAULT_KEYWORDS = "Zendaya OR Holland OR Selena OR Olivia OR Sabrina OR Sweeney OR Powell OR Elordi OR Miley OR Margot OR Gosling OR Drake OR Kendrick OR Swift OR Kelce OR Kardashian OR Jenner OR Bieber OR Mongeau OR Earle OR MrBeast OR D'Amelio OR Logan Paul OR Jake Paul OR Cardi B OR Nicki Minaj OR Mikayla Nogueira OR JoJo Siwa OR Alix Earle OR Alex Cooper OR Katseye OR Nidal Wonder OR Salish Matter OR Jordan Matter OR Piper Rockelle OR Not Enough Nelsons OR Norris Nuts OR Gypsy Rose OR Bobbi Althoff OR Jenna Ortega OR Benny Blanco OR Cynthia Erivo OR Ethan Slater OR Ned Fulmer OR Alabama Barker OR North West OR Clavicular OR Manon OR Clara Dao OR Chaewon OR Ben Pasternak OR Evelyn Ha OR Brooke Monk OR Natalie Reynolds OR Leah Ashe OR Meganplays OR JustJules OR Paultooreal OR Dylan OR Jooshica OR D4vd OR Celeste OR Katy Perry OR Preslee Faith OR Glow House OR Noah Beck OR Haley OR Cissy OR Ferran OR Lara OR Phibz OR Becca Bloom OR Saidee Nelson OR Rock Squad OR Gia OR Reese OR That Vegan Teacher OR Mattie OR Harper OR Kaido OR Salish OR Jennifer Lopez OR Chappell Roan OR Jude Law OR Haylee Baylee OR Jennette McCurdy OR Malachi Barton OR Malia OR Nayvee Nelson OR LOL Podcast OR Kate OR Jenny Hoyos OR Angelo OR Ryder OR OnlyJayus OR Travis Barker OR JustKass OR Mattie Westbrouck OR Timothee Chalamet OR Daniela OR Rakai OR Danielle OR NewJeans OR Kim Kardashian OR Lewis Hamilton OR Woah Vicky OR Melanie Martinez OR Kourtney Kardashian OR Kalogeras Sisters OR Demetria OR Desmond Scott OR Kristy OR Camilla Araujo OR Bailey OR Allday Project OR Kanye OR Louis Partridge OR Txunamy OR Brooks OR Odessa A'Zion OR Dakota OR Felicity OR MeganPlays OR Sophie Silva OR Samara OR Zuza OR Jack Doherty OR Brianna Olsen OR Ash Trevino OR Nara Smith OR Aaron Taylor Johnson OR Britney Spears OR Ryan Reynolds OR Blake Lively OR Freya Skye OR Ms Shirley OR KJ Apa OR Riverdale OR Bella Hadid OR Benny OR Bhad Bhabie OR Elphaba Orion Doherty OR Princess Amelia OR Sophie Rain OR Lil Tay OR Kendall Jenner OR Sofi Manassyan OR Bella The Wolf OR Wizard Liz OR Landon OR Sockie Norris OR Jazmine Tan OR Lala Sadi OR Nevada OR Asher OR Tate Mcrae OR Kid Laroi OR Labubu OR Ashley Barnes OR Diddy OR Madison Beer OR Chris Hughes OR Austin OR Ashton Kutcher OR Brittany Murphy OR SZA OR Zayn Malik OR Gigi Hadid OR Bradley Cooper OR James Charles OR Jeffree Star OR Sabrina Carpenter OR Rachel Zegler OR Smiley OR Matt Howard OR Abby OR Austin McBroom OR Catherine Paiz OR Mason Disick OR Justin Baldoni OR JonBenét Ramsey OR Penn Badgley OR Anna Kendrick OR Colleen Hoover OR Sienna Mae OR Jack Wright OR Tom Holland"
 
-SETTINGS_FILE = os.path.join(parent_dir, "daily_content_settings.json")
+SETTINGS_FILE = os.path.join(web_static_dir, "daily_content_settings.json")
 
 # --- 2. LOG REDIRECTOR AND STATE MANAGER ---
 class ScraperManager:
@@ -446,7 +448,11 @@ def run_scraper_thread(settings):
 
         # Global Search (1-by-1 queries, executed in parallel using max_scrape_workers)
         if not manager.stop_requested:
-            kw_list = [k.strip() for k in keywords.split(" OR ") if k.strip()]
+            # Split by ' OR ' (case insensitive), commas, or newlines
+            import re
+            kw_clean = re.sub(r'\s+[Oo][Rr]\s+', ',', keywords)
+            kw_list = [k.strip() for k in re.split(r'[\n,]', kw_clean) if k.strip()]
+            
             sanitized_kws = []
             for kw in kw_list:
                 clean_kw = kw.replace("'", "")
@@ -564,7 +570,9 @@ def run_scraper_thread(settings):
             manager.progress_percent = 95
             
             df = pd.DataFrame(all_final_results)
-            save_path_root = os.path.join(save_folder, "Scrapped list")
+            # Create a date-specific path: save_folder/DD-MM-YYYY/Scrapped list
+            date_str = datetime.now().strftime("%d-%m-%Y")
+            save_path_root = os.path.join(save_folder, date_str, "Scrapped list")
             os.makedirs(save_path_root, exist_ok=True)
             
             for i, row in df.iterrows():
@@ -635,6 +643,47 @@ def save_current_settings(settings):
         print(f"Error saving settings: {e}")
         return False
 
+def get_startup_file_path():
+    if sys.platform == "win32":
+        try:
+            appdata = os.environ.get('APPDATA')
+            if appdata:
+                return os.path.join(appdata, 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup', 'story_recaps_scraper_startup.vbs')
+        except Exception:
+            pass
+    return None
+
+def check_autostart_status():
+    path = get_startup_file_path()
+    if path:
+        return os.path.exists(path)
+    return False
+
+def set_autostart_status(enabled):
+    path = get_startup_file_path()
+    if not path:
+        return
+        
+    if enabled:
+        try:
+            script_path = os.path.abspath(__file__)
+            # VBScript to run python script silently in background (0 = hide window)
+            vbs_content = (
+                'Set WshShell = CreateObject("WScript.Shell")\n'
+                f'WshShell.Run "python ""{script_path}""", 0, False\n'
+            )
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, 'w', encoding='utf-8') as f:
+                f.write(vbs_content)
+        except Exception as e:
+            print(f"Error creating startup file: {e}")
+    else:
+        try:
+            if os.path.exists(path):
+                os.remove(path)
+        except Exception as e:
+            print(f"Error removing startup file: {e}")
+
 # Serve Frontend SPA
 @app.route('/')
 def index():
@@ -648,9 +697,16 @@ def serve_static(path):
 @app.route('/api/settings', methods=['GET', 'POST'])
 def api_settings():
     if request.method == 'GET':
-        return jsonify(get_current_settings())
+        settings = get_current_settings()
+        settings["autostart"] = check_autostart_status()
+        return jsonify(settings)
     else:
         new_settings = request.json
+        
+        # Handle autostart setting
+        autostart_enabled = new_settings.get("autostart", False)
+        set_autostart_status(autostart_enabled)
+        
         if save_current_settings(new_settings):
             return jsonify({"status": "success", "message": "Settings saved successfully."})
         else:
@@ -699,34 +755,69 @@ def api_status():
 def api_results():
     settings = get_current_settings()
     save_folder = settings.get("save_folder") or os.path.dirname(os.path.abspath(__file__))
-    target_dir = os.path.join(save_folder, "Scrapped list")
     
-    if not os.path.exists(target_dir):
-        return jsonify([])
-        
+    files = []
+    
+    # 1. Scan legacy folder (save_folder/Scrapped list)
+    legacy_dir = os.path.join(save_folder, "Scrapped list")
+    if os.path.exists(legacy_dir) and os.path.isdir(legacy_dir):
+        try:
+            for f in os.listdir(legacy_dir):
+                if f.endswith('.txt'):
+                    full_path = os.path.join(legacy_dir, f)
+                    stat = os.stat(full_path)
+                    
+                    subreddit = "unknown"
+                    parts = f.split('_r_')
+                    if len(parts) >= 2:
+                        sub_part = parts[1].split('_')
+                        if len(sub_part) > 0:
+                            subreddit = sub_part[0]
+                            
+                    files.append({
+                        "name": f,
+                        "subreddit": subreddit,
+                        "size_bytes": stat.st_size,
+                        "modified": datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S"),
+                        "mtime": stat.st_mtime
+                    })
+        except Exception as e:
+            print(f"Error scanning legacy folder: {e}")
+
+    # 2. Scan date folders (save_folder/<date>/Scrapped list)
+    import re
+    date_pattern = re.compile(r'^(\d{2}-\d{2}-\d{4}|\d{4}-\d{2}-\d{2})$')
+    
+    if os.path.exists(save_folder) and os.path.isdir(save_folder):
+        try:
+            for entry in os.listdir(save_folder):
+                entry_path = os.path.join(save_folder, entry)
+                if os.path.isdir(entry_path) and date_pattern.match(entry):
+                    date_scrapped_dir = os.path.join(entry_path, "Scrapped list")
+                    if os.path.exists(date_scrapped_dir) and os.path.isdir(date_scrapped_dir):
+                        for f in os.listdir(date_scrapped_dir):
+                            if f.endswith('.txt'):
+                                full_path = os.path.join(date_scrapped_dir, f)
+                                stat = os.stat(full_path)
+                                
+                                subreddit = "unknown"
+                                parts = f.split('_r_')
+                                if len(parts) >= 2:
+                                    sub_part = parts[1].split('_')
+                                    if len(sub_part) > 0:
+                                        subreddit = sub_part[0]
+                                        
+                                files.append({
+                                    "name": f"{entry}/{f}",
+                                    "subreddit": subreddit,
+                                    "size_bytes": stat.st_size,
+                                    "modified": datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S"),
+                                    "mtime": stat.st_mtime
+                                })
+        except Exception as e:
+            print(f"Error scanning date folders: {e}")
+            
     try:
-        files = []
-        for f in os.listdir(target_dir):
-            if f.endswith('.txt'):
-                full_path = os.path.join(target_dir, f)
-                stat = os.stat(full_path)
-                # Parse title and subreddit from filename if matching our format
-                # e.g., "1_r_popculturechat_Title.txt"
-                subreddit = "unknown"
-                parts = f.split('_r_')
-                if len(parts) >= 2:
-                    sub_part = parts[1].split('_')
-                    if len(sub_part) > 0:
-                        subreddit = sub_part[0]
-                
-                files.append({
-                    "name": f,
-                    "subreddit": subreddit,
-                    "size_bytes": stat.st_size,
-                    "modified": datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S"),
-                    "mtime": stat.st_mtime
-                })
-        
         # Sort by modified time descending (newest first)
         files.sort(key=lambda x: x['mtime'], reverse=True)
         return jsonify(files)
@@ -737,19 +828,36 @@ def api_results():
 @app.route('/api/results/content', methods=['GET'])
 def api_result_content():
     filename = request.args.get('file', '')
-    if not filename or '/' in filename or '\\' in filename or '..' in filename:
+    if not filename:
         return jsonify({"status": "error", "message": "Invalid filename"}), 400
         
     settings = get_current_settings()
     save_folder = settings.get("save_folder") or os.path.dirname(os.path.abspath(__file__))
-    target_dir = os.path.join(save_folder, "Scrapped list")
-    file_path = os.path.join(target_dir, filename)
+    save_folder_abs = os.path.abspath(save_folder)
     
-    if not os.path.exists(file_path):
+    # Handle both legacy and date-prefixed paths safely
+    if "/" in filename or "\\" in filename:
+        filename_clean = filename.replace("\\", "/")
+        parts = filename_clean.split("/")
+        if len(parts) == 2:
+            date_dir, real_filename = parts
+            file_path = os.path.join(save_folder_abs, date_dir, "Scrapped list", real_filename)
+        else:
+            return jsonify({"status": "error", "message": "Invalid filename structure"}), 400
+    else:
+        file_path = os.path.join(save_folder_abs, "Scrapped list", filename)
+        
+    file_path_abs = os.path.abspath(file_path)
+    
+    # Security verification
+    if not file_path_abs.startswith(save_folder_abs):
+        return jsonify({"status": "error", "message": "Access denied"}), 403
+        
+    if not os.path.exists(file_path_abs):
         return jsonify({"status": "error", "message": "File not found"}), 404
         
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path_abs, 'r', encoding='utf-8') as f:
             content = f.read()
         return jsonify({"filename": filename, "content": content})
     except Exception as e:
@@ -760,8 +868,20 @@ def api_result_content():
 def api_open_folder():
     settings = get_current_settings()
     save_folder = settings.get("save_folder") or os.path.dirname(os.path.abspath(__file__))
-    target_dir = os.path.join(save_folder, "Scrapped list")
     
+    # Try today's date folder first, then legacy Scrapped list, then save_folder
+    date_str = datetime.now().strftime("%d-%m-%Y")
+    today_target_dir = os.path.join(save_folder, date_str, "Scrapped list")
+    
+    if os.path.exists(today_target_dir):
+        target_dir = today_target_dir
+    else:
+        legacy_dir = os.path.join(save_folder, "Scrapped list")
+        if os.path.exists(legacy_dir):
+            target_dir = legacy_dir
+        else:
+            target_dir = save_folder
+            
     os.makedirs(target_dir, exist_ok=True)
     try:
         if sys.platform == "win32":
@@ -790,7 +910,7 @@ if __name__ == "__main__":
         
     threading.Thread(target=open_browser, daemon=True).start()
     
-    print("\n[*] Starting CineNuggets Web Scraper Server...")
+    print("\n[*] Starting Story Recaps Web Scraper Server...")
     print("[*] Access UI at: http://127.0.0.1:5000")
     print("[*] Press Ctrl+C in this terminal to stop the server.")
     
