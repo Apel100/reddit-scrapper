@@ -1,5 +1,10 @@
 // CineNuggets Frontend Application Logic
 
+// Detect API base URL dynamically
+const API_BASE = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") 
+    ? "" 
+    : "http://127.0.0.1:5000";
+
 // Global Application State
 let appSettings = {
     comment_threshold: 15,
@@ -106,7 +111,7 @@ function switchMainTab(tabName) {
 // Fetch configurations from backend
 async function loadSettings() {
     try {
-        const response = await fetch(`/api/settings?_t=${Date.now()}`);
+        const response = await fetch(`${API_BASE}/api/settings?_t=${Date.now()}`);
         if (!response.ok) throw new Error("Failed to load settings");
         
         appSettings = await response.json();
@@ -142,7 +147,7 @@ async function saveSettings() {
     appSettings.keywords = document.getElementById("keywords-input").value;
     
     try {
-        const response = await fetch("/api/settings", {
+        const response = await fetch(`${API_BASE}/api/settings`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(appSettings)
@@ -213,7 +218,7 @@ async function startScraper() {
     await saveSettings();
     
     try {
-        const response = await fetch("/api/start", { method: "POST" });
+        const response = await fetch(`${API_BASE}/api/start`, { method: "POST" });
         if (!response.ok) {
             const data = await response.json();
             throw new Error(data.message || "Scraper start failed.");
@@ -246,7 +251,7 @@ async function startScraper() {
 // Stop Scraper gracefully
 async function stopScraper() {
     try {
-        const response = await fetch("/api/stop", { method: "POST" });
+        const response = await fetch(`${API_BASE}/api/stop`, { method: "POST" });
         if (!response.ok) throw new Error("Failed to stop scraper.");
         showToast("Stopping process... Cleaning threads.");
     } catch (error) {
@@ -257,7 +262,7 @@ async function stopScraper() {
 // Check status on load or interval
 async function checkStatus() {
     try {
-        const response = await fetch(`/api/status?_t=${Date.now()}`);
+        const response = await fetch(`${API_BASE}/api/status?_t=${Date.now()}`);
         if (!response.ok) throw new Error();
         
         const data = await response.json();
@@ -295,7 +300,7 @@ async function checkStatus() {
 // Poll Logs during execution
 async function pollLogs() {
     try {
-        const response = await fetch(`/api/status?since=${lastLogIndex}&_t=${Date.now()}`);
+        const response = await fetch(`${API_BASE}/api/status?since=${lastLogIndex}&_t=${Date.now()}`);
         if (!response.ok) throw new Error();
         
         const data = await response.json();
@@ -382,7 +387,7 @@ function updateScraperStatusBadge(active, message = "Running...") {
 // Fetch files list
 async function loadResultsList() {
     try {
-        const response = await fetch(`/api/results?_t=${Date.now()}`);
+        const response = await fetch(`${API_BASE}/api/results?_t=${Date.now()}`);
         if (!response.ok) throw new Error("Could not load results.");
         
         const files = await response.json();
@@ -432,7 +437,7 @@ async function selectResultFile(filename, element) {
     activeResultFile = filename;
     
     try {
-        const response = await fetch(`/api/results/content?file=${filename}&_t=${Date.now()}`);
+        const response = await fetch(`${API_BASE}/api/results/content?file=${filename}&_t=${Date.now()}`);
         if (!response.ok) throw new Error();
         
         const data = await response.json();
@@ -471,7 +476,7 @@ async function selectResultFile(filename, element) {
 // Helper to open results directory on OS explorer
 async function openResultsFolder() {
     try {
-        const res = await fetch("/api/open-folder", { method: "POST" });
+        const res = await fetch(`${API_BASE}/api/open-folder`, { method: "POST" });
         if (!res.ok) throw new Error();
         showToast("Opening results directory...");
     } catch (e) {
