@@ -1,4 +1,4 @@
-// CineNuggets Frontend Application Logic
+// Story Recaps Frontend Application Logic
 
 // Detect API base URL dynamically
 const API_BASE = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") 
@@ -21,6 +21,7 @@ let lastLogIndex = 0;
 let isScraperActive = false;
 let currentFileRawContent = "";
 let activeResultFile = "";
+let isServerConnected = null;
 
 // Initialize App
 document.addEventListener("DOMContentLoaded", () => {
@@ -127,8 +128,19 @@ async function loadSettings() {
         document.getElementById("max-workers").value = appSettings.max_workers;
         document.getElementById("max-workers-val").textContent = appSettings.max_workers;
         
-        document.getElementById("save-folder").value = appSettings.save_folder || "Default script directory";
-        document.getElementById("keywords-input").value = appSettings.keywords;
+        // Set actual path value or blank (so HTML placeholder displays "Default script directory")
+        document.getElementById("save-folder").value = appSettings.save_folder || "";
+        
+        // Populate autostart checkbox
+        document.getElementById("autostart").checked = appSettings.autostart || false;
+        
+        // Format keywords for easier reading (replace ' OR ' with newlines)
+        if (appSettings.keywords) {
+            const formattedKeywords = appSettings.keywords.replace(/\s+[Oo][Rr]\s+/g, '\n');
+            document.getElementById("keywords-input").value = formattedKeywords;
+        } else {
+            document.getElementById("keywords-input").value = "";
+        }
         
         renderSubredditChips();
         updateConnectionBadge(true);
@@ -144,6 +156,14 @@ async function saveSettings() {
     appSettings.lookback_val = parseInt(document.getElementById("lookback-val").value);
     appSettings.lookback_unit = document.getElementById("lookback-unit").value;
     appSettings.max_workers = parseInt(document.getElementById("max-workers").value);
+    
+    // Save folder path handling
+    const folderInput = document.getElementById("save-folder").value.trim();
+    appSettings.save_folder = (folderInput === "Default script directory" || folderInput === "") ? "" : folderInput;
+    
+    // Autostart handling
+    appSettings.autostart = document.getElementById("autostart").checked;
+    
     appSettings.keywords = document.getElementById("keywords-input").value;
     
     try {
@@ -362,12 +382,44 @@ async function pollLogs() {
 // Update Badges UI
 function updateConnectionBadge(connected) {
     const badge = document.getElementById("connection-status");
+    const guideContent = document.getElementById("setup-guide-content");
+    const toggleIcon = document.getElementById("setup-guide-toggle-icon");
+    const guideCard = document.getElementById("setup-guide-card");
+    
+    // Check if the connection state actually changed
+    const stateChanged = (isServerConnected !== connected);
+    isServerConnected = connected;
+    
     if (connected) {
         badge.className = "status-badge connected";
         badge.innerHTML = `<span class="dot"></span> Server Connected`;
+        
+        if (guideCard) {
+            guideCard.classList.add("connected-state");
+        }
+        
+        // ONLY auto collapse on transition (when state changes from offline to online)
+        if (stateChanged) {
+            if (guideContent && !guideContent.classList.contains("d-none")) {
+                guideContent.classList.add("d-none");
+                if (toggleIcon) toggleIcon.textContent = "▲";
+            }
+        }
     } else {
         badge.className = "status-badge";
         badge.innerHTML = `<span class="dot" style="background-color: #ef4444;"></span> Server Offline`;
+        
+        if (guideCard) {
+            guideCard.classList.remove("connected-state");
+        }
+        
+        // ONLY auto expand on transition (when state changes from online to offline)
+        if (stateChanged) {
+            if (guideContent && guideContent.classList.contains("d-none")) {
+                guideContent.classList.remove("d-none");
+                if (toggleIcon) toggleIcon.textContent = "▼";
+            }
+        }
     }
 }
 
@@ -405,8 +457,9 @@ async function loadResultsList() {
             item.onclick = () => selectResultFile(file.name, item);
             
             // Format name for readable display (remove .txt and clean numbers)
-            // e.g. "1_r_popculturechat_Title" -> "Title"
-            let readableTitle = file.name.replace(".txt", "");
+            // e.g. "24-05-2026/1_r_popculturechat_Title.txt" -> "Title"
+            let baseName = file.name.split('/').pop().split('\\').pop();
+            let readableTitle = baseName.replace(".txt", "");
             const titleParts = readableTitle.split(/_r_[a-zA-Z0-9]+_/i);
             if (titleParts.length >= 2) {
                 readableTitle = titleParts[1].replace(/_/g, " ");
@@ -664,4 +717,44 @@ function renderCommentTree(commentsList, container) {
     commentsList.forEach(comment => {
         container.appendChild(buildNodeHtml(comment));
     });
+}
+
+// --- CONFIG MODAL CONTROLLERS ---
+function openConfigModal() {
+    const modal = document.getElementById("config-modal");
+    if (modal) {
+        modal.classList.remove("d-none");
+    }
+}
+
+function closeConfigModal() {
+    const modal = document.getElementById("config-modal");
+    if (modal) {
+        modal.classList.add("d-none");
+    }
+    // Auto save all changed configs (like newly added subreddits/keywords)
+    saveSettings();
+}
+
+// Close modal if clicking outside the modal content
+window.addEventListener("click", (e) => {
+    const modal = document.getElementById("config-modal");
+    if (e.target === modal) {
+        closeConfigModal();
+    }
+});
+
+// Setup Guide Accordion Toggle
+function toggleSetupGuide() {
+    const content = document.getElementById("setup-guide-content");
+    const icon = document.getElementById("setup-guide-toggle-icon");
+    if (content) {
+        if (content.classList.contains("d-none")) {
+            content.classList.remove("d-none");
+            if (icon) icon.textContent = "▼";
+        } else {
+            content.classList.add("d-none");
+            if (icon) icon.textContent = "▲";
+        }
+    }
 }

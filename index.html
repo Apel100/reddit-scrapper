@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CineNuggets: Viral Content Scraper</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔥</text></svg>">
+    <title>Story Recaps: Viral Content Scraper</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,9 +18,9 @@
         <!-- Header -->
         <header class="app-header">
             <div class="header-left">
-                <span class="logo-icon">🔥</span>
+                <span class="logo-icon">🎬</span>
                 <div class="logo-text">
-                    <h1>CineNuggets</h1>
+                    <h1>Story Recaps</h1>
                     <span class="subtitle">Viral Content Scraper</span>
                 </div>
             </div>
@@ -37,10 +37,28 @@
         <!-- Main Content Layout -->
         <main class="app-content">
             
-            <!-- Left Panel: Control Center -->
+            <!-- Left Panel: Scraper Settings -->
             <section class="control-panel panel-card">
+                <!-- Local Setup Guide Card -->
+                <div id="setup-guide-card" class="setup-guide-card">
+                    <div class="setup-guide-header" onclick="toggleSetupGuide()">
+                        <h3>💻 Setup Local Engine</h3>
+                        <span id="setup-guide-toggle-icon">▼</span>
+                    </div>
+                    <div id="setup-guide-content" class="setup-guide-content">
+                        <p>This dashboard requires the Python engine to run on your computer to save files locally.</p>
+                        <ol class="setup-steps">
+                            <li>Install <a href="https://www.python.org/downloads/" target="_blank">Python</a> on your computer.</li>
+                            <li>Download the engine script below.</li>
+                            <li>Double-click the downloaded file to run it.</li>
+                            <li>This page will automatically show <strong>Connected</strong>!</li>
+                        </ol>
+                        <a href="daily_content_web.py" download class="btn primary btn-sm w-full mt-5" style="text-decoration: none;">📥 Download daily_content_web.py</a>
+                    </div>
+                </div>
+
                 <div class="panel-header">
-                    <h2>⚙️ Control Center</h2>
+                    <h2>⚙️ Scraper Settings</h2>
                     <p>Configure parameters and target directories.</p>
                 </div>
                 
@@ -81,37 +99,22 @@
                     <!-- Save Folder -->
                     <div class="form-group">
                         <label for="save-folder">Save Folder Path</label>
-                        <div class="input-action-row">
-                            <input type="text" id="save-folder" name="save_folder" placeholder="Default script directory" readonly>
-                            <button type="button" id="btn-save-settings" class="btn secondary btn-sm" onclick="saveSettings()">Save Settings</button>
-                        </div>
+                        <input type="text" id="save-folder" name="save_folder" placeholder="Default script directory" style="padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background-color: var(--bg-card); font-size: 0.8rem; color: var(--text-main); outline: none; font-family: inherit; width: 100%;">
                     </div>
+                    
+                    <!-- Auto Start on Boot -->
+                    <div class="form-group" style="flex-direction: row; align-items: center; gap: 8px; margin-top: 4px; margin-bottom: 8px;">
+                        <input type="checkbox" id="autostart" name="autostart" style="width: 16px; height: 16px; accent-color: var(--primary); cursor: pointer;">
+                        <label for="autostart" style="font-size: 0.8rem; font-weight: 500; color: var(--text-main); cursor: pointer; user-select: none; margin: 0;">Start automatically when Windows boots</label>
+                    </div>
+                    
+                    <button type="button" id="btn-save-settings" class="btn secondary w-full" onclick="saveSettings()" style="font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 4px;">💾 Save as Default</button>
                 </form>
 
-                <!-- Configuration Management Tabs -->
-                <div class="config-tabs-container">
-                    <div class="config-tab-headers">
-                        <button class="config-tab-btn active" onclick="switchConfigTab('subreddits')">Subreddits</button>
-                        <button class="config-tab-btn" onclick="switchConfigTab('keywords')">Keywords</button>
-                    </div>
-                    
-                    <!-- Subreddits Tab -->
-                    <div id="config-subreddits" class="config-tab-content active">
-                        <div class="subreddit-input-row">
-                            <input type="text" id="new-subreddit" placeholder="e.g. popculturechat">
-                            <button type="button" class="btn secondary btn-sm" onclick="addSubreddit()">Add</button>
-                        </div>
-                        <div id="subreddits-list" class="chips-container">
-                            <!-- Populated by JavaScript -->
-                        </div>
-                    </div>
-                    
-                    <!-- Keywords Tab -->
-                    <div id="config-keywords" class="config-tab-content">
-                        <p class="help-text">Use <code>OR</code> to separate items, e.g. <code>Zendaya OR Selena</code></p>
-                        <textarea id="keywords-input" rows="5" placeholder="Enter keywords..."></textarea>
-                        <button type="button" class="btn secondary btn-sm mt-5" onclick="updateKeywords()">Update Keywords</button>
-                    </div>
+                <!-- Clean Management Area -->
+                <div class="manage-lists-box" style="margin-top: 16px; padding: 12px; border: 1px dashed var(--border-color); border-radius: var(--radius-sm); background-color: var(--neutral-light); text-align: center;">
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px;">Target subreddits & search keywords</p>
+                    <button type="button" class="btn secondary w-full" onclick="openConfigModal()" style="font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px;">⚙️ Manage Subs & Keywords</button>
                 </div>
 
                 <!-- Main Action Buttons -->
@@ -168,7 +171,7 @@
                     <!-- Logs Console Viewport -->
                     <div class="console-viewport-container flex-grow">
                         <div id="console-viewport" class="console-viewport">
-                            <div class="log-line system-log">[SYSTEM] CineNuggets Scraper UI ready. Click "Start Viral Scraper" to begin...</div>
+                            <div class="log-line system-log">[SYSTEM] Story Recaps Scraper UI ready. Click "Start Viral Scraper" to begin...</div>
                         </div>
                     </div>
                 </div>
@@ -222,6 +225,46 @@
 
     <!-- Alert Toast -->
     <div id="toast" class="toast d-none"></div>
+
+    <!-- Config Modal (Manage Subreddits & Keywords) -->
+    <div id="config-modal" class="modal-overlay d-none">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>⚙️ Manage Subreddits & Keywords</h3>
+                <span class="close-modal-btn" onclick="closeConfigModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <!-- Configuration Management Tabs -->
+                <div class="config-tabs-container modal-tabs">
+                    <div class="config-tab-headers">
+                        <button class="config-tab-btn active" onclick="switchConfigTab('subreddits')">Subreddits</button>
+                        <button class="config-tab-btn" onclick="switchConfigTab('keywords')">Keywords</button>
+                    </div>
+                    
+                    <!-- Subreddits Tab -->
+                    <div id="config-subreddits" class="config-tab-content active">
+                        <div class="subreddit-input-row" style="display: flex; gap: 8px; margin-bottom: 12px;">
+                            <input type="text" id="new-subreddit" placeholder="e.g. popculturechat" style="flex-grow: 1; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); outline: none;">
+                            <button type="button" class="btn secondary btn-sm" onclick="addSubreddit()">Add</button>
+                        </div>
+                        <div id="subreddits-list" class="chips-container" style="max-height: 250px; overflow-y: auto; padding: 4px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background-color: var(--neutral-light);">
+                            <!-- Populated by JavaScript -->
+                        </div>
+                    </div>
+                    
+                    <!-- Keywords Tab -->
+                    <div id="config-keywords" class="config-tab-content">
+                        <p class="help-text" style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px;">Use commas or newlines (one per line) to separate keywords, e.g. <code>Zendaya, Selena</code></p>
+                        <textarea id="keywords-input" rows="8" placeholder="Enter keywords..." style="width: 100%; padding: 12px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); outline: none; font-family: inherit; font-size: 0.85rem; resize: vertical;"></textarea>
+                        <button type="button" class="btn secondary btn-sm mt-5" onclick="updateKeywords()">Update Keywords</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn primary" onclick="closeConfigModal()">Apply & Close</button>
+            </div>
+        </div>
+    </div>
 
     <script src="app.js"></script>
 </body>
